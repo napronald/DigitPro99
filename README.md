@@ -8,7 +8,8 @@ As of now, DigitPro99 can successfully classify digits from 0 to 9. You can see 
 
 ## Ongoing Development
 
-Currently working on deploying a larger model via an API for digit segmentation.
+Currently, the focus is on **integrating a database to collect a more diverse training dataset**.
+Next, I will work on deploying a larger model via an API for digit segmentation.
 
 ## Future Plans
 
