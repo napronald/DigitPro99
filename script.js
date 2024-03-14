@@ -1,3 +1,34 @@
+let modelSession;
+
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js';
+import { getFirestore, addDoc, collection, query, orderBy, getDocs } from 'https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore.js';
+
+const firebaseConfig = {
+    apiKey: "AIzaSyA8PpkWj7gMm5tfR-wTVOal5jt48fJC9F4",
+    authDomain: "digitpro99-2ccef.firebaseapp.com",
+    projectId: "digitpro99-2ccef",
+    storageBucket: "digitpro99-2ccef.appspot.com",
+    messagingSenderId: "64681699452",
+    appId: "1:64681699452:web:c759bf7c500966914341f9",
+    measurementId: "G-X5EH1Z3K4C"
+};
+
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+
+async function loadModel() {
+    try {
+      modelSession = await new onnx.InferenceSession();
+      await modelSession.loadModel("model.onnx");
+      console.log("Model loaded");
+    } catch (error) {
+      console.error('Error loading model:', error);
+    }
+  }
+
+
 async function loadOnnxJs() {
     return new Promise((resolve, reject) => {
         const script = document.createElement('script');
@@ -7,34 +38,6 @@ async function loadOnnxJs() {
         document.head.appendChild(script);
     });
 }
-
-let db; 
-let modelSession; 
-
-async function initDB() {
-    return new Promise((resolve, reject) => {
-        const request = indexedDB.open('canvasDrawingDB', 1);
-
-        request.onerror = function(event) {
-            console.error("Database error: ", event.target.errorCode);
-            reject(new Error(`IndexedDB error: ${event.target.errorCode}`));
-        };
-
-        request.onupgradeneeded = function(event) {
-            let db = event.target.result;
-            if (!db.objectStoreNames.contains('images')) {
-                db.createObjectStore("images", { keyPath: "id", autoIncrement: true });
-            }
-        };
-
-        request.onsuccess = function(event) {
-            db = event.target.result;
-            console.log("Database initialized");
-            resolve(db);
-        };
-    });
-}
-
 
 
 function preprocessCanvasImage(canvas) {
@@ -58,22 +61,37 @@ function preprocessCanvasImage(canvas) {
 }
 
 
-function saveCanvasImage(canvas) {
-    canvas.toBlob(function(blob) {
-        const transaction = db.transaction(["images"], "readwrite");
-        const objectStore = transaction.objectStore("images");
-        const request = objectStore.add({ image: blob });
-        request.onsuccess = function(event) {
-            console.log("Image saved to the database with id: ", request.result);
+async function saveCanvasImage(canvas) {
+    canvas.toBlob(async function(blob) {
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+            const base64Image = reader.result;
+            try {
+                await addDoc(collection(db, "images"), { image: base64Image });
+                console.log("Image saved to Firestore");
+            } catch (error) {
+                console.error("Error saving image to Firestore:", error);
+            }
         };
-        request.onerror = function(event) {
-            console.error("Error saving image: ", event.target.errorCode);
-        };
+        reader.readAsDataURL(blob); 
     });
 }
 
 
-// Existing code...
+async function listAllImages() {
+    const imagesCol = collection(db, "images");
+    const imageSnapshot = await getDocs(query(imagesCol, orderBy("createdAt")));
+    const imageListElement = document.getElementById('image-list');
+    imageListElement.innerHTML = ''; 
+
+    imageSnapshot.forEach(doc => {
+        const imageElement = document.createElement('img');
+        imageElement.src = doc.data().image;
+        imageElement.className = 'image-item';
+        imageListElement.appendChild(imageElement);
+    });
+}
+
 
 function clearDatabase() {
     const transaction = db.transaction(["images"], "readwrite");
@@ -86,76 +104,56 @@ function clearDatabase() {
 
     request.onsuccess = function(event) {
         console.log("Database cleared successfully");
-        // Optionally, you can update the UI or perform any additional actions after clearing the database
     };
 }
 
 
-function readImageById(imageId) {
-    const transaction = db.transaction(["images"], "readonly");
-    const objectStore = transaction.objectStore("images");
-    const request = objectStore.get(imageId);
 
-    request.onerror = function(event) {
-        console.error("Error fetching image with id: ", imageId, event.target.errorCode);
-    };
+function setupCanvas() {
+    const canvas = document.getElementById('draw-canvas');
+    const ctx = canvas.getContext('2d');
+    let isDrawing = false;
+    let lastX = 0;
+    let lastY = 0;
 
-    request.onsuccess = function(event) {
-        if (request.result) {
-            console.log("Image fetched successfully: ", request.result);
-        } else {
-            console.log("No image found with id: ", imageId);
-        }
-    };
+    canvas.addEventListener('mousedown', (e) => {
+        isDrawing = true;
+        [lastX, lastY] = [e.offsetX, e.offsetY];
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+        if (!isDrawing) return;
+        ctx.beginPath();
+        ctx.moveTo(lastX, lastY);
+        ctx.lineTo(e.offsetX, e.offsetY);
+        ctx.stroke();
+        [lastX, lastY] = [e.offsetX, e.offsetY];
+    });
+
+    canvas.addEventListener('mouseup', () => {
+        isDrawing = false;
+    });
+
+    canvas.addEventListener('mouseout', () => {
+        isDrawing = false;
+    });
+
+    ctx.fillStyle = '#000000'; 
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.strokeStyle = '#FFFFFF'; 
+    ctx.lineWidth = 10; 
+    ctx.lineJoin = 'round'; 
+    ctx.lineCap = 'round'; 
 }
 
 
-function listAllImages() {
-    const imageListElement = document.getElementById('image-list');
-    imageListElement.innerHTML = ''; 
-
-    const transaction = db.transaction(["images"], "readonly");
-    const objectStore = transaction.objectStore("images");
-    const request = objectStore.openCursor(); 
-
-    request.onerror = function(event) {
-        console.error("Error fetching images: ", event.target.errorCode);
-    };
-
-    request.onsuccess = function(event) {
-        const cursor = event.target.result;
-        if (cursor) {
-            const imageElement = document.createElement('img');
-            const imageURL = URL.createObjectURL(cursor.value.image);
-            imageElement.src = imageURL;
-            imageElement.className = 'image-item';
-            imageElement.onload = function() {
-                URL.revokeObjectURL(imageURL); 
-            };
-            imageListElement.appendChild(imageElement);
-            
-            cursor.continue(); 
-        } else {
-            console.log("No more entries!");
-        }
-    };
+function clearCanvas() {
+    const canvas = document.getElementById('draw-canvas');
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
 }
-
-
-function deleteImageById(imageId) {
-    const transaction = db.transaction(["images"], "readwrite");
-    const objectStore = transaction.objectStore("images");
-    const request = objectStore.delete(imageId);
-
-    request.onerror = function(event) {
-        console.error("Error deleting image with id: ", imageId, event.target.errorCode);
-    };
-
-    request.onsuccess = function(event) {
-        console.log("Image deleted successfully with id: ", imageId);
-    };
-}
-
 
 
 function setupEventListeners() {
@@ -214,68 +212,10 @@ function setupEventListeners() {
 }
 
 
-async function loadModel() {
-    try {
-        modelSession = await new onnx.InferenceSession();
-        await modelSession.loadModel("model.onnx");
-        console.log("Model loaded");
-    } catch (error) {
-        console.error('Error loading model:', error);
-    }
-}
-
-function setupCanvas() {
-    const canvas = document.getElementById('draw-canvas');
-    const ctx = canvas.getContext('2d');
-    let isDrawing = false;
-    let lastX = 0;
-    let lastY = 0;
-
-    canvas.addEventListener('mousedown', (e) => {
-        isDrawing = true;
-        [lastX, lastY] = [e.offsetX, e.offsetY];
-    });
-
-    canvas.addEventListener('mousemove', (e) => {
-        if (!isDrawing) return;
-        ctx.beginPath();
-        ctx.moveTo(lastX, lastY);
-        ctx.lineTo(e.offsetX, e.offsetY);
-        ctx.stroke();
-        [lastX, lastY] = [e.offsetX, e.offsetY];
-    });
-
-    canvas.addEventListener('mouseup', () => {
-        isDrawing = false;
-    });
-
-    canvas.addEventListener('mouseout', () => {
-        isDrawing = false;
-    });
-
-    ctx.fillStyle = '#000000'; 
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    ctx.strokeStyle = '#FFFFFF'; 
-    ctx.lineWidth = 10; 
-    ctx.lineJoin = 'round'; 
-    ctx.lineCap = 'round'; 
-}
-
-
-function clearCanvas() {
-    const canvas = document.getElementById('draw-canvas');
-    const ctx = canvas.getContext('2d');
-    ctx.fillStyle = '#000000';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-}
-
-
 async function main() {
     try {
         await loadOnnxJs();
         console.log("ONNX.js loaded");
-        await initDB();
         setupCanvas();
         setupEventListeners();
         await loadModel();
