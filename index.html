@@ -5,8 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Digit Classifier</title>
     <link rel="stylesheet" href="style.css">
-    <script src="script.js" defer></script>
-    <script src="https://cdn.jsdelivr.net/npm/onnxjs/dist/onnx.min.js" defer></script>
 </head>
 <body>
     <h2>Draw a digit (0-99) and click classify</h2>
@@ -14,8 +12,9 @@
     <button id="clear-btn">Clear</button>
     <button id="classify-btn">Classify</button>
     <button id="list-images-btn">List All Images</button>
-    <button id="clear-db-btn">Clear Database</button> 
+    <button id="clear-db-btn">Clear Database</button>
     <div id="image-list"></div>
     <p id="prediction-result"></p>
+    <script src="script.js" type="module" defer></script>
 </body>
 </html>
