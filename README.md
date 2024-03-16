@@ -15,6 +15,9 @@ Next, I will work on deploying a larger model via an API for digit segmentation.
 
 Over the coming weeks,
 
+- User Statistics + Log in
+- Draw ROI
+- Incremental Learning
 - Finalize and deploy the larger model through API.
 - Expand the model's classification capabilities beyond the basic 0-9 digits.
 - Explore additional features and improvements to further enhance the model's performance.
