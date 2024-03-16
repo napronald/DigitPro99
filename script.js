@@ -84,19 +84,42 @@ async function saveCanvasImage(canvas, realLabel, predictedLabel) {
 
 
 
+let isImageListVisible = false;
+
+
 async function listAllImages() {
     const imagesCol = collection(db, "images");
     const imageSnapshot = await getDocs(query(imagesCol, orderBy("createdAt")));
     const imageListElement = document.getElementById('image-list');
-    imageListElement.innerHTML = ''; 
 
-    imageSnapshot.forEach(doc => {
-        const imageElement = document.createElement('img');
-        imageElement.src = doc.data().image;
-        imageElement.className = 'image-item';
-        imageListElement.appendChild(imageElement);
-    });
+    if (isImageListVisible) {
+        imageListElement.innerHTML = ''; 
+        isImageListVisible = false;
+    } else {
+        imageListElement.innerHTML = ''; 
+        imageSnapshot.forEach(doc => {
+            const imageData = doc.data();
+
+            const imageContainer = document.createElement('div');
+            imageContainer.className = 'image-container';
+
+            const imageElement = document.createElement('img');
+            imageElement.src = imageData.image;
+            imageElement.className = 'image-item';
+
+            const labelElement = document.createElement('div');
+            labelElement.className = 'label-item';
+            labelElement.innerHTML = `<strong>Real:</strong> ${imageData.realLabel} <strong>Predicted:</strong> ${imageData.predictedLabel}`;
+
+            imageContainer.appendChild(imageElement);
+            imageContainer.appendChild(labelElement);
+
+            imageListElement.appendChild(imageContainer);
+        });
+        isImageListVisible = true;
+    }
 }
+
 
 
 async function clearDatabase() {
@@ -112,7 +135,6 @@ async function clearDatabase() {
     await batch.commit();
     console.log("Database cleared successfully");
 }
-
 
 
 function setupCanvas() {
@@ -207,7 +229,8 @@ function setupEventListeners() {
                 const predictionDisplayElement = document.getElementById('prediction-result');
                 predictionDisplayElement.textContent = `Predicted Class: ${predictedClass}`;
         
-                saveCanvasImage(document.getElementById('draw-canvas')); 
+                saveCanvasImage(document.getElementById('draw-canvas'), realLabel, predictedClass);
+
             } catch (error) {
                 console.error('Error during classification:', error);
             }        
