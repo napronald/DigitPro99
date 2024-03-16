@@ -61,21 +61,27 @@ function preprocessCanvasImage(canvas) {
 }
 
 
-async function saveCanvasImage(canvas) {
+async function saveCanvasImage(canvas, realLabel, predictedLabel) {
     canvas.toBlob(async function(blob) {
         const reader = new FileReader();
         reader.onloadend = async () => {
             const base64Image = reader.result;
             try {
-                await addDoc(collection(db, "images"), { image: base64Image });
-                console.log("Image saved to Firestore");
+                await addDoc(collection(db, "images"), {
+                    image: base64Image,
+                    realLabel: realLabel, 
+                    predictedLabel: predictedLabel, 
+                    createdAt: new Date() 
+                });
+                console.log("Image and labels saved to Firestore");
             } catch (error) {
-                console.error("Error saving image to Firestore:", error);
+                console.error("Error saving image and labels to Firestore:", error);
             }
         };
-        reader.readAsDataURL(blob); 
+        reader.readAsDataURL(blob);
     });
 }
+
 
 
 async function listAllImages() {
@@ -93,19 +99,20 @@ async function listAllImages() {
 }
 
 
-function clearDatabase() {
-    const transaction = db.transaction(["images"], "readwrite");
-    const objectStore = transaction.objectStore("images");
-    const request = objectStore.clear();
+async function clearDatabase() {
+    const imagesCol = collection(db, "images");
+    const snapshot = await getDocs(imagesCol);
 
-    request.onerror = function(event) {
-        console.error("Error clearing database:", event.target.errorCode);
-    };
+    const batch = writeBatch(db);
 
-    request.onsuccess = function(event) {
-        console.log("Database cleared successfully");
-    };
+    snapshot.docs.forEach((doc) => {
+        batch.delete(doc.ref);
+    });
+
+    await batch.commit();
+    console.log("Database cleared successfully");
 }
+
 
 
 function setupCanvas() {
@@ -210,6 +217,30 @@ function setupEventListeners() {
     }
 }
 
+document.getElementById('canvas-form').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const realLabel = document.getElementById('real-label-input').value;
+    if (!modelSession) {
+        console.log("Model not loaded yet");
+        return;
+    }
+    try {
+        const preprocessedInput = preprocessCanvasImage(document.getElementById('draw-canvas'));
+        const inputTensor = new onnx.Tensor(preprocessedInput, "float32", [1, 1, 28, 28]);
+        const outputMap = await modelSession.run([inputTensor]);
+        const outputTensor = outputMap.values().next().value;
+
+        const predictions = outputTensor.data;
+        const predictedClass = predictions.indexOf(Math.max(...predictions));
+
+        const predictionDisplayElement = document.getElementById('prediction-result');
+        predictionDisplayElement.textContent = `Predicted Class: ${predictedClass}`;
+
+        saveCanvasImage(document.getElementById('draw-canvas'), realLabel, predictedClass);
+    } catch (error) {
+        console.error('Error during classification:', error);
+    }
+});
 
 async function main() {
     try {
