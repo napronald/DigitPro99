@@ -108,7 +108,6 @@ function clearDatabase() {
 }
 
 
-
 function setupCanvas() {
     const canvas = document.getElementById('draw-canvas');
     const ctx = canvas.getContext('2d');
