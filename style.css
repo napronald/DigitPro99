@@ -1,5 +1,15 @@
+:root {
+    --main-font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    --main-text-color: #333;
+    --accent-color: #4CAF50;
+    --hover-accent-color: #4CAE4C;
+    --button-bg-color: #5CB85C;
+    --border-radius: 5px;
+    --box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+}
+
 body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: var(--main-font-family);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -7,69 +17,62 @@ body {
     margin: 0;
     padding: 20px;
     background-color: #f7f7f7;
-    background-image: url('https://wallpapercave.com/wp/wp3416319.jpg'); 
-    color: #333;
+    background-image: url('https://wallpapercave.com/wp/wp3416319.jpg');
+    color: var(--main-text-color);
 }
 
 h2 {
     font-size: 24px;
-    color: #444;
+    color: var(--accent-color);
     margin: 10px 0;
 }
 
-#prediction-result, #real-label-input {
+#prediction-result, #real-label-input, canvas, .image-item {
     margin-top: 10px;
     margin-bottom: 10px;
-    font-size: 20px;
-    color: #4CAF50;
-    border: 1px solid #4CAF50;
-    border-radius: 5px;
+    border-radius: var(--border-radius);
     padding: 10px;
-    width: calc(100% - 20px);
     text-align: center;
-    box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1); 
+    box-shadow: var(--box-shadow);
+}
+
+#prediction-result, #real-label-input {
+    font-size: 20px;
+    color: var(--accent-color);
+    border: 1px solid var(--accent-color);
+    width: calc(100% - 20px);
 }
 
 #real-label-input {
     font-size: 18px;
-    color: #333;
-    border-color: #ddd;
-    display: block;
-    margin: 10px auto; 
-    text-align: center;
-    background-color: rgba(255, 255, 255, 0.2); 
-    border: 1px solid #aaa; 
     color: #fff;
+    border-color: #aaa;
+    background-color: rgba(255, 255, 255, 0.2);
+    margin: 10px auto;
 }
 
-canvas {
+canvas, .image-item {
     border: 1px solid #ccc;
-    border-radius: 5px;
-    margin-bottom: 10px;
-    padding: 5px;
-    background-color: #fff; 
+    background-color: #fff;
     cursor: crosshair;
-    box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1); 
 }
 
 button {
-    background-color: #5CB85C;
+    background-color: var(--button-bg-color);
     border: none;
     color: white;
     padding: 10px 20px;
-    text-align: center;
-    text-decoration: none;
     display: inline-block;
     font-size: 16px;
     margin: 5px;
     cursor: pointer;
-    border-radius: 5px;
+    border-radius: var(--border-radius);
     transition: background-color 0.3s ease, box-shadow 0.2s ease;
 }
 
 button:hover {
-    background-color: #4CAE4C;
-    box-shadow: 0px 8px 16px rgba(0, 0, 0, 0.2); 
+    background-color: var(--hover-accent-color);
+    box-shadow: 0px 8px 16px rgba(0, 0, 0, 0.2);
 }
 
 button:focus {
@@ -77,43 +80,49 @@ button:focus {
     box-shadow: 0 0 0 3px rgba(70, 140, 70, 0.5);
 }
 
-
-#button-container {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: space-around;
-    max-width: 600px;
-}
-
-#image-list {
-    padding: 15px;
+#button-container, #image-list {
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
-    gap: 10px; 
+    gap: 10px;
     max-width: 600px;
 }
 
-.image-item {
+.image-container {
     border: 1px solid #ddd;
-    border-radius: 5px;
-    padding: 5px;
+    border-radius: var(--border-radius);
+    padding: 10px;
+    margin: 10px;
+    text-align: center;
+    box-shadow: var(--box-shadow);
+    background: #fff;
+    display: inline-block; 
 }
 
-#prediction-result {
-    font-size: 20px;
-    color: #4CAF50;
-    border: 2px solid #4CAF50;
-    border-radius: 5px;
-    padding: 10px;
-    width: 100%;
-    text-align: center;
+.image-item {
+    width: 100px;
+    height: auto; 
+}
+
+.label-item {
+    margin-top: 10px;
+    font-size: 0.9em; 
+    color: var(--main-text-color);
+    background-color: #f3f3f3; 
+    padding: 5px;
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+}
+
+.label-item strong {
+    color: var(--button-bg-color); 
 }
 
 @media (max-width: 768px) {
     #button-container {
         flex-direction: column;
     }
+
     button {
         width: 100%;
         margin: 5px 0;
