@@ -240,6 +240,40 @@ function setupEventListeners() {
     }
 }
 
+// ------------
+
+function updateStatsTable(stats) {
+    const table = document.getElementById('stats-table');
+    table.innerHTML = '';
+
+    Object.keys(stats).forEach(key => {
+        const row = table.insertRow(-1); 
+        const cellDigit = row.insertCell(0); 
+        const cellCorrect = row.insertCell(1); 
+        const cellIncorrect = row.insertCell(2); 
+
+        cellDigit.textContent = `Digit ${key}`;
+        cellCorrect.textContent = `Correct: ${stats[key].correct}`;
+        cellIncorrect.textContent = `Incorrect: ${stats[key].incorrect}`;
+    });
+}
+
+const exampleStats = {
+    '0': { correct: 5, incorrect: 2 },
+    '1': { correct: 7, incorrect: 3 },
+    '2': { correct: 5, incorrect: 2 },
+    '3': { correct: 7, incorrect: 3 },
+    '4': { correct: 5, incorrect: 2 },
+    '5': { correct: 7, incorrect: 3 },
+    '7': { correct: 5, incorrect: 2 },
+    '8': { correct: 7, incorrect: 3 },
+    '9': { correct: 5, incorrect: 2 },
+};
+
+updateStatsTable(exampleStats);
+
+// ------------
+
 document.getElementById('canvas-form').addEventListener('submit', async (event) => {
     event.preventDefault();
     const realLabel = document.getElementById('real-label-input').value;
