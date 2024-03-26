@@ -7,19 +7,45 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <h2>Draw a digit (0-9) and click classify</h2>
-    <form id="canvas-form">
-        <canvas id="draw-canvas" width="280" height="280"></canvas>
-        <p id="prediction-result"></p>
-        <input type="number" id="real-label-input" placeholder="Enter real digit" min="0" max="9">
-        <div id="button-container">
-            <button type="button" id="clear-btn">Clear</button>
-            <button type="submit" id="classify-btn">Classify</button>
-        </div>
-    </form>
-    <button id="list-images-btn">View Database</button>
-    <button id="clear-db-btn">Clear Database</button>
-    <div id="image-list"></div>
+
+    <div class="statistics-sidebar">
+        <h3>Statistics</h3>
+        <table id="stats-table">
+            <thead>
+                <tr>
+                    <th>Digit</th>
+                    <th>Correct</th>
+                    <th>Incorrect</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- add later -->
+            </tbody>
+        </table>
+    </div>
+
+    <div class="main-content">
+        <h2>Draw a digit (0-9) and click classify</h2>
+        <form id="canvas-form">
+            <canvas id="draw-canvas" width="280" height="280"></canvas>
+            <p id="prediction-result"></p>
+            <input type="number" id="real-label-input" placeholder="Enter real digit" min="0" max="9">
+            <div id="button-container">
+                <button type="button" id="clear-btn">Clear</button>
+                <button type="submit" id="classify-btn">Classify</button>
+            </div>
+        </form>
+        <button id="list-images-btn">View Database</button>
+        <button id="clear-db-btn">Clear Database</button>
+        <div id="image-list"></div>
+    </div>
+    
+    <div class="github-link">
+        <a href="https://github.com/napronald/DigitPro99" target="_blank">
+            <img src="icon.png" alt="GitHub" />
+        </a>
+    </div>
+
     <script src="script.js" type="module" defer></script>
 </body>
 </html>
