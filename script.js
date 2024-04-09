@@ -2,6 +2,7 @@ let modelSession;
 
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js';
 import { getFirestore, addDoc, collection, query, orderBy, getDocs } from 'https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore.js';
+import { writeBatch } from 'https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore.js';
 
 const firebaseConfig = {
     apiKey: "AIzaSyA8PpkWj7gMm5tfR-wTVOal5jt48fJC9F4",
@@ -62,30 +63,32 @@ function preprocessCanvasImage(canvas) {
 
 
 async function saveCanvasImage(canvas, realLabel, predictedLabel) {
-    canvas.toBlob(async function(blob) {
-        const reader = new FileReader();
-        reader.onloadend = async () => {
-            const base64Image = reader.result;
-            try {
-                await addDoc(collection(db, "images"), {
-                    image: base64Image,
-                    realLabel: realLabel, 
-                    predictedLabel: predictedLabel, 
-                    createdAt: new Date() 
-                });
-                console.log("Image and labels saved to Firestore");
-            } catch (error) {
-                console.error("Error saving image and labels to Firestore:", error);
-            }
-        };
-        reader.readAsDataURL(blob);
+    return new Promise((resolve, reject) => {
+        canvas.toBlob(async function(blob) {
+            const reader = new FileReader();
+            reader.onloadend = async () => {
+                const base64Image = reader.result;
+                try {
+                    await addDoc(collection(db, "images"), {
+                        image: base64Image,
+                        realLabel: Number(realLabel),
+                        predictedLabel: predictedLabel,
+                        createdAt: new Date() 
+                    });
+                    console.log("Image and labels saved to Firestore");
+                    resolve(); 
+                } catch (error) {
+                    console.error("Error saving image and labels to Firestore:", error);
+                    reject(error); 
+                }
+            };
+            reader.readAsDataURL(blob);
+        });
     });
 }
 
 
-
 let isImageListVisible = false;
-
 
 async function listAllImages() {
     const imagesCol = collection(db, "images");
@@ -121,19 +124,32 @@ async function listAllImages() {
 }
 
 
-
 async function clearDatabase() {
     const imagesCol = collection(db, "images");
     const snapshot = await getDocs(imagesCol);
-
     const batch = writeBatch(db);
 
     snapshot.docs.forEach((doc) => {
         batch.delete(doc.ref);
     });
 
-    await batch.commit();
-    console.log("Database cleared successfully");
+    try {
+        await batch.commit();
+        console.log("Database cleared successfully");
+        updateUIAfterDatabaseClear();
+        await updateUIWithStats(); 
+    } catch (error) {
+        console.error("Error clearing the database:", error);
+    }
+}
+
+
+function updateUIAfterDatabaseClear() {
+    const statsTable = document.getElementById('stats-table').getElementsByTagName('tbody')[0];
+    statsTable.innerHTML = '';
+
+    document.getElementById('prediction-result').textContent = '';
+    document.getElementById('image-list').innerHTML = '';
 }
 
 
@@ -188,6 +204,7 @@ function setupEventListeners() {
     const listImagesBtn = document.getElementById('list-images-btn');
     const clearBtn = document.getElementById('clear-btn');
     const classifyBtn = document.getElementById('classify-btn');
+    const realLabelInput = document.getElementById('real-label-input');
 
     if (listImagesBtn) {
         listImagesBtn.addEventListener('click', listAllImages);
@@ -215,42 +232,71 @@ function setupEventListeners() {
                 return;
             }
             try {
-                const preprocessedInput = preprocessCanvasImage(document.getElementById('draw-canvas')); 
+                const preprocessedInput = preprocessCanvasImage(document.getElementById('draw-canvas'));
                 const inputTensor = new onnx.Tensor(preprocessedInput, "float32", [1, 1, 28, 28]);
-                console.log("Input tensor:", inputTensor);
                 const outputMap = await modelSession.run([inputTensor]);
-                console.log("Output map object:", outputMap);
                 const outputTensor = outputMap.values().next().value;
-                console.log("Output tensor:", outputTensor);
-        
                 const predictions = outputTensor.data;
                 const predictedClass = predictions.indexOf(Math.max(...predictions));
-        
                 const predictionDisplayElement = document.getElementById('prediction-result');
                 predictionDisplayElement.textContent = `Predicted Class: ${predictedClass}`;
-        
-                saveCanvasImage(document.getElementById('draw-canvas'), realLabel, predictedClass);
-
+                
+                const realLabel = realLabelInput.value; 
+                saveCanvasImage(document.getElementById('draw-canvas'), realLabel, predictedClass)
+                    .then(() => {
+                        updateUIWithStats(); 
+                    })
+                    .catch(error => console.error('Error updating UI stats:', error));
             } catch (error) {
                 console.error('Error during classification:', error);
             }        
         });
-    } else {
-        console.error("Button with ID 'classify-btn' was not found.");
     }
 }
 
-// ------------
+
+async function getStats() {
+    const imagesCol = collection(db, "images");
+    const snapshot = await getDocs(imagesCol);
+
+    const stats = {};
+    for (let i = 0; i < 10; i++) {
+        stats[i] = { correct: 0, incorrect: 0 };
+    }
+
+    snapshot.forEach((doc) => {
+        const data = doc.data();
+        const realLabel = data.realLabel.toString(); 
+        if (!stats[realLabel]) {
+            stats[realLabel] = { correct: 0, incorrect: 0 };
+        }
+        if (data.realLabel === data.predictedLabel) {
+            stats[realLabel].correct++;
+        } else {
+            stats[realLabel].incorrect++;
+        }
+    });
+
+    return stats;
+}
+
+
+async function updateUIWithStats() {
+    const stats = await getStats();
+    console.log("Stats from Firestore:", stats);
+    updateStatsTable(stats);
+}
+
 
 function updateStatsTable(stats) {
     const table = document.getElementById('stats-table');
     table.innerHTML = '';
 
     Object.keys(stats).forEach(key => {
-        const row = table.insertRow(-1); 
-        const cellDigit = row.insertCell(0); 
-        const cellCorrect = row.insertCell(1); 
-        const cellIncorrect = row.insertCell(2); 
+        const row = table.insertRow(-1);
+        const cellDigit = row.insertCell(0);
+        const cellCorrect = row.insertCell(1);
+        const cellIncorrect = row.insertCell(2);
 
         cellDigit.textContent = `Digit ${key}`;
         cellCorrect.textContent = `Correct: ${stats[key].correct}`;
@@ -258,21 +304,6 @@ function updateStatsTable(stats) {
     });
 }
 
-const exampleStats = {
-    '0': { correct: 5, incorrect: 2 },
-    '1': { correct: 7, incorrect: 3 },
-    '2': { correct: 5, incorrect: 2 },
-    '3': { correct: 7, incorrect: 3 },
-    '4': { correct: 5, incorrect: 2 },
-    '5': { correct: 7, incorrect: 3 },
-    '7': { correct: 5, incorrect: 2 },
-    '8': { correct: 7, incorrect: 3 },
-    '9': { correct: 5, incorrect: 2 },
-};
-
-updateStatsTable(exampleStats);
-
-// ------------
 
 document.getElementById('canvas-form').addEventListener('submit', async (event) => {
     event.preventDefault();
@@ -293,11 +324,11 @@ document.getElementById('canvas-form').addEventListener('submit', async (event) 
         const predictionDisplayElement = document.getElementById('prediction-result');
         predictionDisplayElement.textContent = `Predicted Class: ${predictedClass}`;
 
-        saveCanvasImage(document.getElementById('draw-canvas'), realLabel, predictedClass);
     } catch (error) {
         console.error('Error during classification:', error);
     }
 });
+
 
 async function main() {
     try {
@@ -306,9 +337,11 @@ async function main() {
         setupCanvas();
         setupEventListeners();
         await loadModel();
+        await updateUIWithStats();
     } catch (error) {
         console.error('Error in main initialization:', error);
     }
 }
+
 
 document.addEventListener('DOMContentLoaded', main);
