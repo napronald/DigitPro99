@@ -153,51 +153,181 @@ function updateUIAfterDatabaseClear() {
 }
 
 
+
+
+
+
+let isDrawing = false;
+let isDrawingROI = false;
+
+let mode = 'draw'; 
+let rois = []; 
+let lastX = 0;  
+let lastY = 0;  
+let roiStart = null; 
+let roiEnd = null; 
+
+let offscreenCanvas = document.createElement('canvas');
+offscreenCanvas.width = 280;
+offscreenCanvas.height = 280;
+let offCtx = offscreenCanvas.getContext('2d');
+offCtx.fillStyle = '#000000';
+offCtx.fillRect(0, 0, offscreenCanvas.width, offscreenCanvas.height);
+
+function setDrawingStyle(ctx) {
+    ctx.strokeStyle = '#FFFFFF'; 
+    ctx.lineWidth = 10;          
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+}
+
+function setROIStyle(ctx) {
+    ctx.strokeStyle = 'red';   
+    ctx.lineWidth = 2;         
+}
+
 function setupCanvas() {
     const canvas = document.getElementById('draw-canvas');
     const ctx = canvas.getContext('2d');
-    let isDrawing = false;
-    let lastX = 0;
-    let lastY = 0;
+
+    setDrawingStyle(ctx);
 
     canvas.addEventListener('mousedown', (e) => {
-        isDrawing = true;
-        [lastX, lastY] = [e.offsetX, e.offsetY];
+        if (mode === 'roi') {
+            isDrawingROI = true;
+            roiStart = { x: e.offsetX, y: e.offsetY };
+            roiEnd = { x: e.offsetX, y: e.offsetY };
+            setROIStyle(ctx);
+        } else {
+            isDrawing = true;
+            lastX = e.offsetX;
+            lastY = e.offsetY;
+        }
     });
 
     canvas.addEventListener('mousemove', (e) => {
-        if (!isDrawing) return;
-        ctx.beginPath();
-        ctx.moveTo(lastX, lastY);
-        ctx.lineTo(e.offsetX, e.offsetY);
-        ctx.stroke();
-        [lastX, lastY] = [e.offsetX, e.offsetY];
+        if (mode === 'roi' && isDrawingROI) {
+            roiEnd = { x: e.offsetX, y: e.offsetY };
+            redrawCanvas(ctx);
+            drawTemporaryROI(ctx, e.offsetX, e.offsetY);
+        } else if (isDrawing) {
+            ctx.beginPath();
+            ctx.moveTo(lastX, lastY);
+            ctx.lineTo(e.offsetX, e.offsetY);
+            ctx.stroke();
+            lastX = e.offsetX;
+            lastY = e.offsetY;
+        }
     });
 
     canvas.addEventListener('mouseup', () => {
-        isDrawing = false;
+        const ctx = canvas.getContext('2d');
+    
+        if (mode === 'roi') {
+            isDrawingROI = false;
+            if (roiStart && roiEnd && (roiStart.x !== roiEnd.x || roiStart.y !== roiEnd.y)) {
+                showDigitInputIndicator(roiStart, roiEnd, canvas);
+                redrawCanvas(ctx); 
+            }
+        } else {
+            isDrawing = false;
+            offCtx.drawImage(canvas, 0, 0); 
+        }
     });
 
     canvas.addEventListener('mouseout', () => {
+        isDrawingROI = false;
         isDrawing = false;
     });
-
     ctx.fillStyle = '#000000'; 
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+}
 
-    ctx.strokeStyle = '#FFFFFF'; 
-    ctx.lineWidth = 10; 
-    ctx.lineJoin = 'round'; 
-    ctx.lineCap = 'round'; 
+function showDigitInputIndicator(start, end, canvas) {
+    const indicator = document.createElement('div');
+    indicator.textContent = 'Enter digit (0-9):';
+    indicator.className = 'digit-indicator';
+    document.body.appendChild(indicator);
+
+    indicator.style.position = 'absolute';
+    indicator.style.left = `${canvas.offsetLeft + end.x + 10}px`;
+    indicator.style.top = `${canvas.offsetTop + start.y}px`;
+    indicator.style.background = 'orange';
+    indicator.style.color = 'white';
+    indicator.style.padding = '5px';
+    indicator.style.borderRadius = '5px';
+    indicator.style.zIndex = '10';
+    indicator.style.boxShadow = '0 0 5px rgba(0,0,0,0.5)';
+    
+    const input = document.createElement('input');
+    input.type = 'number';
+    input.min = 0;
+    input.max = 9;
+    input.className = 'roi-digit-input';
+    indicator.appendChild(input);
+
+    input.addEventListener('input', () => {
+        if(input.value.length === 1 && input.value >= '0' && input.value <= '9') {
+            rois.push({ start, end, digit: input.value });
+            document.body.removeChild(indicator);
+            redrawCanvas(canvas.getContext('2d'));
+        }
+    });
+
+    input.focus();
+}
+
+
+function redrawCanvas(ctx) {
+    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height); 
+    ctx.drawImage(offscreenCanvas, 0, 0); 
+
+    rois.forEach(roi => {
+        ctx.strokeStyle = 'red';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.rect(roi.start.x, roi.start.y, roi.end.x - roi.start.x, roi.end.y - roi.start.y);
+        ctx.stroke();
+    });
+}
+
+function drawTemporaryROI(ctx, x, y) {
+    ctx.strokeStyle = 'red'; 
+    ctx.lineWidth = 2; 
+    ctx.beginPath();
+    ctx.rect(roiStart.x, roiStart.y, x - roiStart.x, y - roiStart.y);
+    ctx.stroke();
+}
+
+function toggleMode() {
+    const canvas = document.getElementById('draw-canvas');
+    const ctx = canvas.getContext('2d');
+
+    if (mode === 'draw') {
+        mode = 'roi';
+        document.getElementById('mode-btn').textContent = 'Switch to Draw';
+        setROIStyle(ctx);
+    } else {
+        mode = 'draw';
+        document.getElementById('mode-btn').textContent = 'Switch to ROI';
+        setDrawingStyle(ctx);
+    }
 }
 
 
 function clearCanvas() {
-    const canvas = document.getElementById('draw-canvas');
-    const ctx = canvas.getContext('2d');
-    ctx.fillStyle = '#000000';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    rois = [];
+    offCtx.fillStyle = '#000000';
+    offCtx.fillRect(0, 0, offscreenCanvas.width, offscreenCanvas.height);
+    redrawCanvas(document.getElementById('draw-canvas').getContext('2d'));
 }
+
+
+
+
+
+
+
 
 
 function setupEventListeners() {
@@ -205,6 +335,7 @@ function setupEventListeners() {
     const clearBtn = document.getElementById('clear-btn');
     const classifyBtn = document.getElementById('classify-btn');
     const realLabelInput = document.getElementById('real-label-input');
+    const modeBtn = document.getElementById('mode-btn'); 
 
     if (listImagesBtn) {
         listImagesBtn.addEventListener('click', listAllImages);
@@ -251,6 +382,11 @@ function setupEventListeners() {
                 console.error('Error during classification:', error);
             }        
         });
+    }
+    if (modeBtn) {
+        modeBtn.addEventListener('click', toggleMode);
+    } else {
+        console.error("Button with ID 'mode-btn' was not found.");
     }
 }
 
