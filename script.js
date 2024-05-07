@@ -425,18 +425,18 @@ async function updateUIWithStats() {
 
 
 function updateStatsTable(stats) {
-    const table = document.getElementById('stats-table');
-    table.innerHTML = '';
+    const table = document.getElementById('stats-table').getElementsByTagName('tbody')[0];
+    table.innerHTML = ''; 
 
-    Object.keys(stats).forEach(key => {
-        const row = table.insertRow(-1);
+    Object.keys(stats).forEach(digit => {
+        const row = table.insertRow();
         const cellDigit = row.insertCell(0);
         const cellCorrect = row.insertCell(1);
         const cellIncorrect = row.insertCell(2);
 
-        cellDigit.textContent = `Digit ${key}`;
-        cellCorrect.textContent = `Correct: ${stats[key].correct}`;
-        cellIncorrect.textContent = `Incorrect: ${stats[key].incorrect}`;
+        cellDigit.textContent = `${digit}`;
+        cellCorrect.textContent = stats[digit].correct;
+        cellIncorrect.textContent = stats[digit].incorrect;
     });
 }
 
